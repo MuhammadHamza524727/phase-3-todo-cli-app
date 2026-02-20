@@ -67,7 +67,8 @@
       "Bash(python test_backend.py)",
       "Bash(python -c \"\nimport sys\nsys.path.insert\\(0, ''.''\\)\n\n# Test importing the key modules\ntry:\n    from src.database.connection import engine\n    print\\(''✅ Database connection module imported successfully''\\)\n    \n    from src.api.auth import router as auth_router\n    print\\(''✅ Auth API module imported successfully''\\)\n    \n    from src.services.auth_service import create_new_user\n    print\\(''✅ Auth service module imported successfully''\\)\n    \n    from src.middleware.jwt_auth import create_access_token\n    print\\(''✅ JWT auth module imported successfully''\\)\n    \n    print\\(''\\\\n✅ All critical modules import successfully!''\\)\n    print\\(''➡️  The backend is ready for deployment to fix the registration issue.''\\)\n    \nexcept ImportError as e:\n    print\\(f''❌ Import error: {e}''\\)\nexcept Exception as e:\n    print\\(f''❌ Error: {e}''\\)\n\")",
       "Bash(curl -I https://hamza-developer-phase2-backend.hf.space)",
-      "Bash(npm run lint)"
+      "Bash(npm run lint)",
+      "WebFetch(domain:phase-3-todo-cli-app.vercel.app)"
     ]
   }
 }
