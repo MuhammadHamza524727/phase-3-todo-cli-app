@@ -1,7 +1,5 @@
-// This file is not used - authentication is handled by the backend API
-// The better-auth routes are commented out since we use custom auth
-// Uncomment below if you want to enable better-auth in the future
-// export { GET, POST } from '../../../lib/auth';
+import { NextResponse } from 'next/server';
 
-// For now, export nothing to satisfy TypeScript module requirements
-export {};
+export async function GET() {
+  return NextResponse.json({ status: 'auth endpoint active' });
+}
