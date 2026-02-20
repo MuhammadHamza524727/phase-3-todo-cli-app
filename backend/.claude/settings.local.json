@@ -1,0 +1,16 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(chmod +x /mnt/d/desktop/hackhathon_spec_driven/hackathon2/phase-2-todo-cli-app/backend/deploy_hf.sh)",
+      "Bash(python -c \"import sys; print\\(sys.path\\)\")",
+      "Bash(python -m py_compile app.py)",
+      "Bash(python test_deployment.py)",
+      "Bash(ls -la *.md)",
+      "Bash(curl -X GET https://hamza-developer-phase2-backend.hf.space/health)",
+      "Bash(curl -X GET https://hamza-developer-phase2-backend.hf.space/)",
+      "Bash(python test_api.py)",
+      "Bash(curl -X GET https://hamza-developer-phase2-backend.hf.space/docs)",
+      "Bash(python diagnostic_report.py)"
+    ]
+  }
+}

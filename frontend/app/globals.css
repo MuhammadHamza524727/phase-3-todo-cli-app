@@ -1,0 +1,20 @@
+@import "tailwindcss";
+
+@layer base {
+  :root {
+    --background: #f8fafc;
+    --surface: #ffffff;
+    --text-primary: #1e293b;
+    --text-secondary: #64748b;
+    --accent: #3b82f6;
+    --accent-hover: #2563eb;
+    --border: #e2e8f0;
+    --success: #10b981;
+    --warning: #f59e0b;
+    --error: #ef4444;
+  }
+
+  body {
+    @apply bg-[#f8fafc] text-[#1e293b];
+  }
+}

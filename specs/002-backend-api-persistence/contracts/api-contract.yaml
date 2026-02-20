@@ -1,0 +1,295 @@
+# API Contract: Backend API & Data Persistence (Spec 2)
+
+**Feature**: Backend API & Data Persistence (Spec 2)
+**Date**: 2026-01-23
+**Version**: 1.0
+
+## Overview
+
+This document defines the REST API contract for the Backend API & Data Persistence feature, specifying endpoints, request/response formats, authentication requirements, and error handling.
+
+## Base URL
+
+```
+https://api.example.com/v1
+```
+
+## Authentication
+
+All endpoints require JWT authentication via the Authorization header:
+
+```
+Authorization: Bearer <jwt_token>
+```
+
+- JWT tokens are obtained from the frontend authentication system
+- Invalid/expired tokens return 401 Unauthorized
+- All user data access is restricted to the authenticated user's data only
+- Server ignores client-provided user IDs and uses JWT-derived user ID for authorization
+
+## Common Headers
+
+### Request Headers
+- `Authorization: Bearer <token>` (for all endpoints)
+- `Content-Type: application/json` (for POST/PUT/PATCH requests)
+
+### Response Headers
+- `Content-Type: application/json`
+- `X-Request-ID: <uuid>` (for request tracing)
+
+## Common Response Format
+
+### Success Responses
+```json
+{
+  "success": true,
+  "data": { /* response data */ },
+  "timestamp": "2026-01-23T10:00:00Z"
+}
+```
+
+### Error Responses
+```json
+{
+  "success": false,
+  "error": {
+    "code": "ERROR_CODE",
+    "message": "Human-readable error message",
+    "details": { /* optional error details */ }
+  },
+  "timestamp": "2026-01-23T10:00:00Z"
+}
+```
+
+## Endpoints
+
+### Task Management Endpoints
+
+#### GET /api/tasks
+Retrieve authenticated user's tasks
+
+**Headers Required:**
+- `Authorization: Bearer <token>`
+
+**Response (200 OK):**
+```json
+{
+  "success": true,
+  "data": {
+    "tasks": [
+      {
+        "id": "uuid",
+        "title": "Task title",
+        "description": "Task description",
+        "completed": false,
+        "owner_user_id": "user_uuid",
+        "created_at": "2026-01-23T10:00:00Z",
+        "updated_at": "2026-01-23T10:00:00Z",
+        "due_date": "2026-01-30T17:00:00Z"
+      }
+    ]
+  },
+  "timestamp": "2026-01-23T10:00:00Z"
+}
+```
+
+**Error Responses:**
+- 401: Unauthorized (invalid/expired token)
+
+#### POST /api/tasks
+Create a new task for the authenticated user
+
+**Headers Required:**
+- `Authorization: Bearer <token>`
+
+**Request Body:**
+```json
+{
+  "title": "New task title",
+  "description": "Task description (optional)",
+  "due_date": "2026-01-30T17:00:00Z" (optional)
+}
+```
+
+**Response (201 Created):**
+```json
+{
+  "success": true,
+  "data": {
+    "id": "uuid",
+    "title": "New task title",
+    "description": "Task description (optional)",
+    "completed": false,
+    "owner_user_id": "authenticated_user_uuid",
+    "created_at": "2026-01-23T10:00:00Z",
+    "updated_at": "2026-01-23T10:00:00Z",
+    "due_date": "2026-01-30T17:00:00Z"
+  },
+  "timestamp": "2026-01-23T10:00:00Z"
+}
+```
+
+**Error Responses:**
+- 400: Invalid input (validation errors)
+- 401: Unauthorized
+
+#### GET /api/tasks/{task_id}
+Retrieve a specific task by ID
+
+**Path Parameter:**
+- `task_id`: UUID of the task to retrieve
+
+**Headers Required:**
+- `Authorization: Bearer <token>`
+
+**Response (200 OK):**
+```json
+{
+  "success": true,
+  "data": {
+    "id": "uuid",
+    "title": "Task title",
+    "description": "Task description",
+    "completed": false,
+    "owner_user_id": "user_uuid",
+    "created_at": "2026-01-23T10:00:00Z",
+    "updated_at": "2026-01-23T10:00:00Z",
+    "due_date": "2026-01-30T17:00:00Z"
+  },
+  "timestamp": "2026-01-23T10:00:00Z"
+}
+```
+
+**Error Responses:**
+- 401: Unauthorized
+- 403: Forbidden (attempting to access another user's task)
+- 404: Task not found
+
+#### PUT /api/tasks/{task_id}
+Update an existing task
+
+**Path Parameter:**
+- `task_id`: UUID of the task to update
+
+**Headers Required:**
+- `Authorization: Bearer <token>`
+
+**Request Body:**
+```json
+{
+  "title": "Updated task title",
+  "description": "Updated description",
+  "completed": true,
+  "due_date": "2026-01-30T17:00:00Z"
+}
+```
+
+**Response (200 OK):**
+```json
+{
+  "success": true,
+  "data": {
+    "id": "uuid",
+    "title": "Updated task title",
+    "description": "Updated description",
+    "completed": true,
+    "owner_user_id": "user_uuid",
+    "created_at": "2026-01-23T10:00:00Z",
+    "updated_at": "2026-01-23T11:00:00Z",
+    "due_date": "2026-01-30T17:00:00Z"
+  },
+  "timestamp": "2026-01-23T11:00:00Z"
+}
+```
+
+**Error Responses:**
+- 400: Invalid input
+- 401: Unauthorized
+- 403: Forbidden (attempting to access another user's task)
+- 404: Task not found
+
+#### PATCH /api/tasks/{task_id}/complete
+Toggle task completion status
+
+**Path Parameter:**
+- `task_id`: UUID of the task to update
+
+**Headers Required:**
+- `Authorization: Bearer <token>`
+
+**Request Body:**
+```json
+{
+  "completed": true
+}
+```
+
+**Response (200 OK):**
+```json
+{
+  "success": true,
+  "data": {
+    "id": "uuid",
+    "title": "Task title",
+    "description": "Task description",
+    "completed": true,
+    "owner_user_id": "user_uuid",
+    "created_at": "2026-01-23T10:00:00Z",
+    "updated_at": "2026-01-23T11:00:00Z",
+    "due_date": "2026-01-30T17:00:00Z"
+  },
+  "timestamp": "2026-01-23T11:00:00Z"
+}
+```
+
+**Error Responses:**
+- 400: Invalid input
+- 401: Unauthorized
+- 403: Forbidden (attempting to access another user's task)
+- 404: Task not found
+
+#### DELETE /api/tasks/{task_id}
+Delete a specific task
+
+**Path Parameter:**
+- `task_id`: UUID of the task to delete
+
+**Headers Required:**
+- `Authorization: Bearer <token>`
+
+**Response (204 No Content):**
+```
+(Empty response body)
+```
+
+**Error Responses:**
+- 401: Unauthorized
+- 403: Forbidden (attempting to access another user's task)
+- 404: Task not found
+
+## Error Codes
+
+| Code | HTTP Status | Description |
+|------|-------------|-------------|
+| AUTH_001 | 401 | Invalid or expired JWT token |
+| AUTH_002 | 403 | Access denied (attempting to access another user's resource) |
+| VALIDATION_001 | 400 | Invalid input format |
+| VALIDATION_002 | 400 | Missing required field |
+| RESOURCE_001 | 404 | Resource not found |
+| RESOURCE_002 | 403 | Access denied (cross-user access attempt) |
+| SERVER_001 | 500 | Internal server error |
+
+## Security Requirements
+
+1. All endpoints require valid JWT tokens
+2. User data isolation: Users can only access their own tasks
+3. Input validation: All user inputs must be validated
+4. Authorization enforcement: Server uses JWT-derived user ID, not client-provided values
+5. Logging: All API requests should be logged for security monitoring
+
+## Performance Requirements
+
+1. API response time: <2 seconds for 95% of requests
+2. Concurrency: Support at least 100 concurrent users
+3. Database queries: All queries must be indexed appropriately
+4. Data isolation: Queries must be efficiently filtered by user ID
