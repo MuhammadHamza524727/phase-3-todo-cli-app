@@ -37,7 +37,7 @@ async def get_tasks(
     query = query.offset(offset).limit(limit).order_by(Task.created_at.desc())
 
     result = await session.exec(query)
-    tasks = result.all()
+    tasks = [row[0] if isinstance(row, tuple) else row for row in result.all()]
 
     return tasks
 

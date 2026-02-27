@@ -43,7 +43,7 @@ class UserContext:
 
 
 @function_tool
-async def add_task(ctx: RunContextWrapper[UserContext], title: str, description: str = "") -> str:
+async def add_task(ctx: RunContextWrapper[UserContext], title: str, description: Optional[str] = None) -> str:
     """Add a new task to your task list. Use this when the user wants to create, add, or make a new task or todo item. Requires a title (1-200 characters). Optionally accepts a description (up to 1000 characters)."""
     # Input validation (FR-005, FR-010)
     title_error = _validate_title(title)
@@ -58,7 +58,7 @@ async def add_task(ctx: RunContextWrapper[UserContext], title: str, description:
 
     db_task = Task(
         title=title.strip(),
-        description=description.strip() if description else None,
+        description=description.strip() if description else "",
         completed=False,
         owner_user_id=user_id,
     )
