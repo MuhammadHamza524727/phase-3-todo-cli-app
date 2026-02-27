@@ -1,5 +1,7 @@
 from sqlmodel import SQLModel, Field, Relationship
-from sqlalchemy import Index
+from sqlalchemy import Column, ForeignKey, Index
+from sqlalchemy import types as sa_types
+from pydantic import field_validator
 from datetime import datetime
 import uuid
 from typing import Optional, List, TYPE_CHECKING
@@ -27,12 +29,25 @@ class Message(SQLModel, table=True):
 
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     conversation_id: uuid.UUID = Field(
-        sa_column_kwargs={"ondelete": "CASCADE"},
         foreign_key="conversation.id",
         nullable=False,
     )
-    role: str = Field(nullable=False, max_length=20, pattern=r"^(user|assistant)$")  # FR-015: only "user" or "assistant"
-    content: str = Field(nullable=False, min_length=1)
+    role: str = Field(nullable=False, max_length=20)  # FR-015: only "user" or "assistant"
+    content: str = Field(nullable=False)
+
+    @field_validator("role")
+    @classmethod
+    def role_must_be_valid(cls, v: str) -> str:
+        if v not in ("user", "assistant"):
+            raise ValueError("role must be 'user' or 'assistant'")
+        return v
+
+    @field_validator("content")
+    @classmethod
+    def content_must_not_be_empty(cls, v: str) -> str:
+        if not v:
+            raise ValueError("content must not be empty")
+        return v
     created_at: datetime = Field(default_factory=datetime.utcnow)
 
     conversation: Optional[Conversation] = Relationship(back_populates="messages")

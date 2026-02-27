@@ -10,13 +10,18 @@ import os
 from datetime import datetime
 from typing import Optional
 
-from agents import Agent, Runner
+from agents import Agent, Runner, OpenAIChatCompletionsModel
+from agents.tracing import set_tracing_disabled
+from openai import AsyncOpenAI
+
+set_tracing_disabled(True)
 from sqlalchemy.future import select
 from sqlalchemy import and_
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from src.models.conversation import Conversation, Message
 from src.models.base_response import ToolCallInfo
+from src.database.connection import engine
 from src.tools.task_tools import (
     add_task,
     list_tasks,
@@ -28,6 +33,11 @@ from src.tools.task_tools import (
 )
 
 logger = logging.getLogger(__name__)
+
+llm_client = AsyncOpenAI(
+    api_key=os.getenv("OPENAI_API_KEY"),
+    base_url="https://api.groq.com/openai/v1",
+)
 
 SYSTEM_INSTRUCTIONS = """You are a helpful task management assistant. You help users manage their to-do tasks through natural language conversation.
 
@@ -49,58 +59,52 @@ Important rules:
 """
 
 
-async def _get_or_create_conversation(
-    user_id: uuid.UUID, session: AsyncSession
-) -> Conversation:
-    """Get the user's conversation or create a new one."""
-    query = select(Conversation).where(Conversation.user_id == user_id)
-    result = await session.exec(query)
-    conversation = result.first()
+async def _get_or_create_conversation(user_id: uuid.UUID) -> uuid.UUID:
+    """Get the user's conversation ID or create a new one. Returns conversation ID."""
+    async with AsyncSession(engine) as session:
+        query = select(Conversation).where(Conversation.user_id == user_id)
+        result = await session.execute(query)
+        conversation = result.scalars().first()
 
-    if not conversation:
-        conversation = Conversation(user_id=user_id)
-        session.add(conversation)
-        await session.commit()
-        await session.refresh(conversation)
+        if not conversation:
+            conversation = Conversation(user_id=user_id)
+            session.add(conversation)
+            await session.commit()
+            await session.refresh(conversation)
 
-    return conversation
+        return conversation.id
 
 
-async def _load_message_history(
-    conversation_id: uuid.UUID, session: AsyncSession, limit: int = 50
-) -> list[dict]:
+async def _load_message_history(conversation_id: uuid.UUID, limit: int = 50) -> list[dict]:
     """Load recent messages for the conversation in chronological order."""
-    query = (
-        select(Message)
-        .where(Message.conversation_id == conversation_id)
-        .order_by(Message.created_at.desc())
-        .limit(limit)
-    )
-    result = await session.exec(query)
-    messages = list(reversed(result.all()))
+    async with AsyncSession(engine) as session:
+        query = (
+            select(Message)
+            .where(Message.conversation_id == conversation_id)
+            .order_by(Message.created_at.desc())
+            .limit(limit)
+        )
+        result = await session.execute(query)
+        messages = list(reversed(result.scalars().all()))
 
-    return [
-        {"role": msg.role, "content": msg.content}
-        for msg in messages
-    ]
+        return [
+            {"role": msg.role, "content": msg.content}
+            for msg in messages
+        ]
 
 
-async def _persist_message(
-    conversation_id: uuid.UUID,
-    role: str,
-    content: str,
-    session: AsyncSession,
-) -> Message:
+async def _persist_message(conversation_id: uuid.UUID, role: str, content: str) -> Message:
     """Save a message to the database."""
-    msg = Message(
-        conversation_id=conversation_id,
-        role=role,
-        content=content,
-    )
-    session.add(msg)
-    await session.commit()
-    await session.refresh(msg)
-    return msg
+    async with AsyncSession(engine) as session:
+        msg = Message(
+            conversation_id=conversation_id,
+            role=role,
+            content=content,
+        )
+        session.add(msg)
+        await session.commit()
+        await session.refresh(msg)
+        return msg
 
 
 async def process_chat_message(
@@ -113,26 +117,30 @@ async def process_chat_message(
     Returns dict with response, conversation_id, and tool_calls.
     """
     # 1. Get or create conversation
-    conversation = await _get_or_create_conversation(user_id, session)
+    conversation_id = await _get_or_create_conversation(user_id)
 
     # 2. Load message history
-    history = await _load_message_history(conversation.id, session)
+    history = await _load_message_history(conversation_id)
 
     # 3. Persist user message
-    await _persist_message(conversation.id, "user", message, session)
+    await _persist_message(conversation_id, "user", message)
 
     # 4. Build messages for the agent
     agent_messages = history + [{"role": "user", "content": message}]
 
-    # 5. Create agent with MCP tools
+    # 5. Create agent with MCP tools (using Gemini via OpenAI-compatible endpoint)
     agent = Agent(
         name="TaskBot",
         instructions=SYSTEM_INSTRUCTIONS,
         tools=[add_task, list_tasks, complete_task, get_task, update_task, delete_task],
+        model=OpenAIChatCompletionsModel(
+            model="llama-3.1-8b-instant",
+            openai_client=llm_client,
+        ),
     )
 
-    # 6. Create context with user_id and session for tools
-    user_context = UserContext(user_id=user_id, session=session)
+    # 6. Create context with user_id for tools
+    user_context = UserContext(user_id=user_id)
 
     # 7. Run the agent
     try:
@@ -162,15 +170,20 @@ async def process_chat_message(
         tool_calls_info = []
 
     # 9. Persist assistant response
-    await _persist_message(conversation.id, "assistant", response_text, session)
+    await _persist_message(conversation_id, "assistant", response_text)
 
     # 10. Update conversation timestamp
-    conversation.updated_at = datetime.utcnow()
-    await session.commit()
+    async with AsyncSession(engine) as s:
+        query = select(Conversation).where(Conversation.id == conversation_id)
+        result = await s.execute(query)
+        conv = result.scalars().first()
+        if conv:
+            conv.updated_at = datetime.utcnow()
+            await s.commit()
 
     return {
         "response": response_text,
-        "conversation_id": conversation.id,
+        "conversation_id": conversation_id,
         "tool_calls": [tc.model_dump() for tc in tool_calls_info],
     }
 
@@ -187,8 +200,8 @@ async def get_chat_history(
     """
     # Find user's conversation
     query = select(Conversation).where(Conversation.user_id == user_id)
-    result = await session.exec(query)
-    conversation = result.first()
+    result = await session.execute(query)
+    conversation = result.scalars().first()
 
     if not conversation:
         return {
@@ -201,8 +214,8 @@ async def get_chat_history(
 
     # Count total messages
     count_query = select(Message).where(Message.conversation_id == conversation.id)
-    count_result = await session.exec(count_query)
-    all_messages = count_result.all()
+    count_result = await session.execute(count_query)
+    all_messages = count_result.scalars().all()
     total = len(all_messages)
 
     # Get paginated messages in chronological order
@@ -213,8 +226,8 @@ async def get_chat_history(
         .offset(offset)
         .limit(limit)
     )
-    msg_result = await session.exec(msg_query)
-    messages = msg_result.all()
+    msg_result = await session.execute(msg_query)
+    messages = msg_result.scalars().all()
 
     return {
         "conversation_id": conversation.id,
