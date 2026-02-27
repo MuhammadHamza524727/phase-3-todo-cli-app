@@ -81,7 +81,8 @@
       "Bash(bash .specify/scripts/bash/setup-plan.sh --json 2>&1)",
       "Bash(bash .specify/scripts/bash/create-phr.sh --title \"mcp-task-tools-task-generation\" --stage tasks --feature 005-mcp-task-tools --json 2>&1)",
       "Bash(bash .specify/scripts/bash/create-new-feature.sh --json --number 6 --short-name \"conversation-persistence\" \"Conversation and message persistence tables for AI chatbot\" 2>&1)",
-      "Bash(bash .specify/scripts/bash/create-phr.sh --title \"conversation-persistence-task-generation\" --stage tasks --feature 006-conversation-persistence --json 2>&1)"
+      "Bash(bash .specify/scripts/bash/create-phr.sh --title \"conversation-persistence-task-generation\" --stage tasks --feature 006-conversation-persistence --json 2>&1)",
+      "Bash(git add backend/.env.example && git commit -m \"$\\(cat <<'EOF'\nfix: remove secrets from .env.example\n\nCo-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>\nEOF\n\\)\")"
     ]
   }
 }
