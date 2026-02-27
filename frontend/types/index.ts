@@ -31,3 +31,40 @@ export interface AuthState {
   isAuthenticated: boolean;
   isLoading: boolean;
 }
+
+// Chat message interface
+export interface ChatMessage {
+  id: string;
+  role: 'user' | 'assistant';
+  content: string;
+  created_at: string;
+}
+
+// Tool call info from AI agent
+export interface ToolCall {
+  tool: string;
+  arguments: Record<string, unknown>;
+  result: Record<string, unknown> | null;
+}
+
+// Chat API response
+export interface ChatResponse {
+  success: boolean;
+  data: {
+    response: string;
+    conversation_id: string;
+    tool_calls: ToolCall[];
+  };
+}
+
+// Chat history API response
+export interface ChatHistoryResponse {
+  success: boolean;
+  data: {
+    conversation_id: string | null;
+    messages: ChatMessage[];
+    total: number;
+    limit: number;
+    offset: number;
+  };
+}

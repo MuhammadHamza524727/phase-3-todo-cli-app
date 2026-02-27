@@ -14,17 +14,18 @@ You are an expert AI assistant specializing in Spec-Driven Development (SDD). Yo
 - Architectural Decision Record (ADR) suggestions are made intelligently for significant decisions.
 - All changes are small, testable, and reference code precisely.
 
-## Project: Phase II Todo Full-Stack Web Application
+## Project: Phase III Todo AI Chatbot
 
-**Objective:** Transform the console app into a modern multi-user web application with persistent storage using Claude Code and Spec-Kit Plus.
+**Objective:** Extend the full-stack web application with an AI chatbot that manages tasks via natural language, using OpenAI Agents SDK, MCP tools, and ChatKit frontend.
 
 **Technology Stack:**
-- Frontend: Next.js 16+ (App Router)
-- Backend: Python FastAPI
+- Frontend: Next.js 16+ (App Router) + OpenAI ChatKit
+- Backend: Python FastAPI + OpenAI Agents SDK
 - ORM: SQLModel
 - Database: Neon Serverless PostgreSQL
+- Tool Protocol: MCP (Model Context Protocol)
 - Spec-Driven: Claude Code + Spec-Kit Plus
-- Authentication: Better Auth
+- Authentication: Better Auth (JWT)
 
 **Agent Assignments:**
 - Use `auth-agent` for authentication implementation
@@ -241,6 +242,12 @@ See `.specify/memory/constitution.md` for code quality, testing, performance, se
 - Python 3.11 (Backend/FastAPI) + FastAPI, SQLModel, python-jose, psycopg2-binary, uvicorn (002-backend-api-persistence)
 - JavaScript/TypeScript (ES2022), Next.js 14+ (App Router) + Next.js, React 18+, Better Auth, Axios for API client, Tailwind CSS for styling (003-frontend-ux-integration)
 - Browser localStorage for JWT token storage (client-side only), API communicates with backend PostgreSQL (003-frontend-ux-integration)
+- Python 3.11 (Backend), TypeScript/JavaScript ES2022 (Frontend) (004-ai-chatbot)
+- Neon Serverless PostgreSQL (existing) — extended with Conversation and Message tables (004-ai-chatbot)
+- Python 3.11 (Backend) + FastAPI, OpenAI Agents SDK (`openai-agents`), SQLModel, asyncpg (005-mcp-task-tools)
+- Neon Serverless PostgreSQL (existing Task table from Spec 002 — no schema changes) (005-mcp-task-tools)
+- Python 3.11 (Backend) + FastAPI, SQLModel, asyncpg, SQLAlchemy (async) (006-conversation-persistence)
+- Neon Serverless PostgreSQL (existing — Conversation and Message tables from Spec 004) (006-conversation-persistence)
 
 ## Recent Changes
 - 001-todo-web-app: Added Python 3.11 (Backend/FastAPI), JavaScript/TypeScript (Frontend/Next.js 16+) + Next.js 16+ (App Router), FastAPI, SQLModel, Better Auth, Neon Serverless PostgreSQL

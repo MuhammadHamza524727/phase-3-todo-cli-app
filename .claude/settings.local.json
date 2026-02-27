@@ -68,7 +68,20 @@
       "Bash(python -c \"\nimport sys\nsys.path.insert\\(0, ''.''\\)\n\n# Test importing the key modules\ntry:\n    from src.database.connection import engine\n    print\\(''✅ Database connection module imported successfully''\\)\n    \n    from src.api.auth import router as auth_router\n    print\\(''✅ Auth API module imported successfully''\\)\n    \n    from src.services.auth_service import create_new_user\n    print\\(''✅ Auth service module imported successfully''\\)\n    \n    from src.middleware.jwt_auth import create_access_token\n    print\\(''✅ JWT auth module imported successfully''\\)\n    \n    print\\(''\\\\n✅ All critical modules import successfully!''\\)\n    print\\(''➡️  The backend is ready for deployment to fix the registration issue.''\\)\n    \nexcept ImportError as e:\n    print\\(f''❌ Import error: {e}''\\)\nexcept Exception as e:\n    print\\(f''❌ Error: {e}''\\)\n\")",
       "Bash(curl -I https://hamza-developer-phase2-backend.hf.space)",
       "Bash(npm run lint)",
-      "WebFetch(domain:phase-3-todo-cli-app.vercel.app)"
+      "WebFetch(domain:phase-3-todo-cli-app.vercel.app)",
+      "Bash(bash .specify/scripts/bash/create-new-feature.sh --json --number 4 --short-name \"ai-chatbot\" \"AI chatbot for natural language task management via ChatKit UI\")",
+      "Bash(bash .specify/scripts/bash/create-phr.sh --title \"ai-chatbot-spec-creation\" --stage spec --feature \"004-ai-chatbot\" --json 2>&1)",
+      "Bash(bash .specify/scripts/bash/update-agent-context.sh claude 2>&1)",
+      "Bash(bash .specify/scripts/bash/check-prerequisites.sh --json 2>&1)",
+      "Bash(bash .specify/scripts/bash/create-phr.sh --title \"ai-chatbot-task-generation\" --stage tasks --feature \"004-ai-chatbot\" --json 2>&1)",
+      "Bash(bash .specify/scripts/bash/check-prerequisites.sh --json --require-tasks --include-tasks 2>&1)",
+      "Bash(git fetch --all --prune 2>&1; echo \"---REMOTE---\"; git ls-remote --heads origin | grep -i mcp 2>/dev/null; echo \"---LOCAL---\"; git branch | grep -i mcp 2>/dev/null; echo \"---SPECS---\"; ls -d specs/*mcp* 2>/dev/null; echo \"---HIGHEST---\"; ls specs/ | grep -oP '^\\\\d+' | sort -n | tail -1)",
+      "Bash(bash .specify/scripts/bash/create-new-feature.sh --json --number 5 --short-name \"mcp-task-tools\" \"MCP server tools for task CRUD operations\")",
+      "Bash(bash .specify/scripts/bash/create-phr.sh --title \"mcp-task-tools-spec-creation\" --stage spec --feature \"005-mcp-task-tools\" --json 2>&1)",
+      "Bash(bash .specify/scripts/bash/setup-plan.sh --json 2>&1)",
+      "Bash(bash .specify/scripts/bash/create-phr.sh --title \"mcp-task-tools-task-generation\" --stage tasks --feature 005-mcp-task-tools --json 2>&1)",
+      "Bash(bash .specify/scripts/bash/create-new-feature.sh --json --number 6 --short-name \"conversation-persistence\" \"Conversation and message persistence tables for AI chatbot\" 2>&1)",
+      "Bash(bash .specify/scripts/bash/create-phr.sh --title \"conversation-persistence-task-generation\" --stage tasks --feature 006-conversation-persistence --json 2>&1)"
     ]
   }
 }

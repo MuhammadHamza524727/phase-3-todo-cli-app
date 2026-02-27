@@ -6,8 +6,10 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from src.database.connection import engine
 from src.api.tasks import router as tasks_router
 from src.api.auth import router as auth_router
+from src.api.chat import router as chat_router
 from src.middleware.jwt_auth import get_current_user
 from src.models.user import User
+from src.models.conversation import Conversation, Message  # noqa: F401 — needed for table creation
 from typing import AsyncGenerator
 import os
 import logging
@@ -73,6 +75,7 @@ app.add_middleware(
 try:
     app.include_router(tasks_router, prefix="/api", tags=["tasks"])
     app.include_router(auth_router, prefix="/api", tags=["auth"])
+    app.include_router(chat_router, prefix="/api", tags=["chat"])
     logger.info("Routers included successfully")
 except Exception as e:
     logger.error(f"Failed to include routers: {str(e)}")

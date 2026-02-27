@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from typing import Generic, TypeVar, Optional, Union, Dict, Any
 from datetime import datetime
 import uuid
@@ -39,3 +39,27 @@ class UserResponse(BaseModel):
     created_at: datetime
     updated_at: datetime
     is_active: bool
+
+
+class ChatRequest(BaseModel):
+    message: str = Field(min_length=1, max_length=2000)
+
+
+class ToolCallInfo(BaseModel):
+    tool: str
+    arguments: Dict[str, Any] = {}
+    result: Optional[Dict[str, Any]] = None
+
+
+class ChatResponseData(BaseModel):
+    response: str
+    conversation_id: uuid.UUID
+    tool_calls: list[ToolCallInfo] = []
+
+
+class ChatHistoryData(BaseModel):
+    conversation_id: Optional[uuid.UUID] = None
+    messages: list[Dict[str, Any]] = []
+    total: int = 0
+    limit: int = 50
+    offset: int = 0
