@@ -37,14 +37,14 @@ const TaskItem: React.FC<TaskItemProps> = ({ task, onUpdate, onDelete, onToggleC
   };
 
   return (
-    <li className={`px-4 py-4 sm:px-6 ${task.completed ? 'bg-surface' : 'bg-surface'}`}>
+    <li className="px-5 py-4 sm:px-6 bg-white/5 hover:bg-white/8 transition-colors duration-200">
       <div className="flex items-center justify-between">
-        <div className="flex items-center">
+        <div className="flex items-center flex-1 min-w-0">
           <input
             type="checkbox"
             checked={task.completed}
             onChange={handleToggleCompletion}
-            className="h-4 w-4 text-accent focus:ring-accent border-border rounded"
+            className="h-4 w-4 text-violet-500 focus:ring-violet-400 border-white/20 rounded bg-white/10 cursor-pointer"
           />
           <div className="ml-3 min-w-0 flex-1">
             {isEditing ? (
@@ -53,13 +53,13 @@ const TaskItem: React.FC<TaskItemProps> = ({ task, onUpdate, onDelete, onToggleC
                   type="text"
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
-                  className="block w-full px-3 py-2 border border-border bg-surface placeholder-text-secondary text-text-primary rounded-md shadow-sm focus:outline-none focus:ring-accent focus:border-accent sm:text-sm"
+                  className="block w-full px-3 py-2 border border-white/20 bg-white/10 placeholder-indigo-300/50 text-white rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-violet-400 focus:border-violet-400 sm:text-sm"
                   placeholder="Task title"
                 />
                 <textarea
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
-                  className="block w-full px-3 py-2 border border-border bg-surface placeholder-text-secondary text-text-primary rounded-md shadow-sm focus:outline-none focus:ring-accent focus:border-accent sm:text-sm"
+                  className="block w-full px-3 py-2 border border-white/20 bg-white/10 placeholder-indigo-300/50 text-white rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-violet-400 focus:border-violet-400 sm:text-sm"
                   placeholder="Task description (optional)"
                   rows={2}
                 />
@@ -67,14 +67,14 @@ const TaskItem: React.FC<TaskItemProps> = ({ task, onUpdate, onDelete, onToggleC
                   <button
                     type="button"
                     onClick={handleSave}
-                    className="inline-flex items-center px-3 py-1 border border-transparent text-xs font-medium rounded text-success bg-green-100 hover:bg-green-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-success"
+                    className="inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-semibold rounded-lg text-white bg-emerald-600 hover:bg-emerald-500 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-emerald-400 transition-colors"
                   >
                     Save
                   </button>
                   <button
                     type="button"
                     onClick={handleCancel}
-                    className="inline-flex items-center px-3 py-1 border border-border text-xs font-medium rounded text-text-primary bg-surface hover:bg-surface focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-accent"
+                    className="inline-flex items-center px-3 py-1.5 border border-white/20 text-xs font-semibold rounded-lg text-indigo-200 bg-white/10 hover:bg-white/15 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-violet-400 transition-colors"
                   >
                     Cancel
                   </button>
@@ -82,11 +82,11 @@ const TaskItem: React.FC<TaskItemProps> = ({ task, onUpdate, onDelete, onToggleC
               </div>
             ) : (
               <div>
-                <p className={`text-sm font-medium ${task.completed ? 'line-through text-text-secondary' : 'text-text-primary'}`}>
+                <p className={`text-sm font-medium ${task.completed ? 'line-through text-indigo-300/50' : 'text-white'}`}>
                   {task.title}
                 </p>
                 {task.description && (
-                  <p className={`text-sm ${task.completed ? 'line-through text-text-secondary' : 'text-text-secondary'}`}>
+                  <p className={`text-sm mt-0.5 ${task.completed ? 'line-through text-indigo-300/40' : 'text-indigo-200/70'}`}>
                     {task.description}
                   </p>
                 )}
@@ -94,12 +94,23 @@ const TaskItem: React.FC<TaskItemProps> = ({ task, onUpdate, onDelete, onToggleC
             )}
           </div>
         </div>
-        <div className="flex items-center space-x-2">
+        <div className="flex items-center space-x-2 ml-3">
+          <button
+            type="button"
+            onClick={handleToggleCompletion}
+            className={`inline-flex items-center px-3 py-1.5 text-xs font-semibold rounded-lg transition-all duration-200 ${
+              task.completed
+                ? 'text-amber-200 bg-amber-600/30 border border-amber-500/40 hover:bg-amber-600/40'
+                : 'text-emerald-200 bg-emerald-600/30 border border-emerald-500/40 hover:bg-emerald-600/40'
+            }`}
+          >
+            {task.completed ? 'Undo' : 'Done'}
+          </button>
           {!isEditing && (
             <button
               type="button"
               onClick={() => setIsEditing(true)}
-              className="inline-flex items-center px-2.5 py-0.5 border border-border text-xs font-medium rounded text-text-primary bg-surface hover:bg-surface focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-accent"
+              className="inline-flex items-center px-3 py-1.5 border border-white/20 text-xs font-semibold rounded-lg text-indigo-200 bg-white/10 hover:bg-white/15 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-violet-400 transition-colors"
             >
               Edit
             </button>
@@ -108,18 +119,18 @@ const TaskItem: React.FC<TaskItemProps> = ({ task, onUpdate, onDelete, onToggleC
             type="button"
             onClick={handleDelete}
             disabled={isDeleting}
-            className="inline-flex items-center px-2.5 py-0.5 border border-transparent text-xs font-medium rounded text-surface bg-accent hover:bg-accent-hover focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-accent disabled:opacity-50"
+            className="inline-flex items-center px-3 py-1.5 border border-red-500/40 text-xs font-semibold rounded-lg text-red-200 bg-red-600/30 hover:bg-red-600/40 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-400 disabled:opacity-50 transition-colors"
           >
             {isDeleting ? 'Deleting...' : 'Delete'}
           </button>
         </div>
       </div>
       <div className="mt-2 flex items-center justify-between">
-        <div className="text-xs text-text-secondary">
+        <div className="text-xs text-indigo-300/50">
           Created: {new Date(task.createdAt).toLocaleDateString()}
         </div>
         {task.updatedAt !== task.createdAt && (
-          <div className="text-xs text-text-secondary">
+          <div className="text-xs text-indigo-300/50">
             Updated: {new Date(task.updatedAt).toLocaleDateString()}
           </div>
         )}
