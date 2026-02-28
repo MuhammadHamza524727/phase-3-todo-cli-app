@@ -10,11 +10,7 @@ import os
 from datetime import datetime
 from typing import Optional
 
-from agents import Agent, Runner, OpenAIChatCompletionsModel
-from agents.tracing import set_tracing_disabled
 from openai import AsyncOpenAI
-
-set_tracing_disabled(True)
 from sqlalchemy.future import select
 from sqlalchemy import and_
 from sqlmodel.ext.asyncio.session import AsyncSession
@@ -23,13 +19,12 @@ from src.models.conversation import Conversation, Message
 from src.models.base_response import ToolCallInfo
 from src.database.connection import engine
 from src.tools.task_tools import (
-    add_task,
-    list_tasks,
-    complete_task,
-    get_task,
-    update_task,
-    delete_task,
-    UserContext,
+    add_task_fn,
+    list_tasks_fn,
+    complete_task_fn,
+    get_task_fn,
+    update_task_fn,
+    delete_task_fn,
 )
 
 logger = logging.getLogger(__name__)
@@ -57,6 +52,104 @@ Important rules:
 6. For non-task-related messages (greetings, questions about weather, etc.), respond politely and remind the user what you can help with.
 7. Be concise but friendly in your responses.
 """
+
+TOOLS_SCHEMA = [
+    {
+        "type": "function",
+        "function": {
+            "name": "add_task",
+            "description": "Add a new task to the user's task list.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "title": {"type": "string", "description": "The task title (1-200 chars)"},
+                    "description": {"type": "string", "description": "Optional task description"},
+                },
+                "required": ["title"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "list_tasks",
+            "description": "List all tasks in the user's task list.",
+            "parameters": {
+                "type": "object",
+                "properties": {},
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "complete_task",
+            "description": "Mark a task as completed or toggle it back to pending. Requires the task ID.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "task_id": {"type": "string", "description": "The UUID of the task to complete"},
+                },
+                "required": ["task_id"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "get_task",
+            "description": "Get details of a specific task by its ID.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "task_id": {"type": "string", "description": "The UUID of the task"},
+                },
+                "required": ["task_id"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "update_task",
+            "description": "Update an existing task's title, description, or completion status.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "task_id": {"type": "string", "description": "The UUID of the task to update"},
+                    "title": {"type": "string", "description": "New title for the task"},
+                    "description": {"type": "string", "description": "New description"},
+                    "completed": {"type": "boolean", "description": "New completion status"},
+                },
+                "required": ["task_id"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "delete_task",
+            "description": "Delete a task permanently. Requires the task ID.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "task_id": {"type": "string", "description": "The UUID of the task to delete"},
+                },
+                "required": ["task_id"],
+            },
+        },
+    },
+]
+
+# Map tool names to functions
+TOOL_HANDLERS = {
+    "add_task": add_task_fn,
+    "list_tasks": list_tasks_fn,
+    "complete_task": complete_task_fn,
+    "get_task": get_task_fn,
+    "update_task": update_task_fn,
+    "delete_task": delete_task_fn,
+}
 
 
 async def _get_or_create_conversation(user_id: uuid.UUID) -> uuid.UUID:
@@ -125,54 +218,82 @@ async def process_chat_message(
     # 3. Persist user message
     await _persist_message(conversation_id, "user", message)
 
-    # 4. Build messages for the agent
-    agent_messages = history + [{"role": "user", "content": message}]
+    # 4. Build messages for the LLM
+    messages = [{"role": "system", "content": SYSTEM_INSTRUCTIONS}] + history + [{"role": "user", "content": message}]
 
-    # 5. Create agent with MCP tools (using Gemini via OpenAI-compatible endpoint)
-    agent = Agent(
-        name="TaskBot",
-        instructions=SYSTEM_INSTRUCTIONS,
-        tools=[add_task, list_tasks, complete_task, get_task, update_task, delete_task],
-        model=OpenAIChatCompletionsModel(
-            model="llama-3.1-8b-instant",
-            openai_client=llm_client,
-        ),
-    )
+    tool_calls_info = []
 
-    # 6. Create context with user_id for tools
-    user_context = UserContext(user_id=user_id)
-
-    # 7. Run the agent
     try:
-        result = await Runner.run(
-            agent,
-            input=agent_messages,
-            context=user_context,
-        )
-        response_text = result.final_output or "I'm sorry, I couldn't process that request."
+        # 5. Call Groq with tools (up to 5 rounds of tool calls)
+        for _ in range(5):
+            response = await llm_client.chat.completions.create(
+                model="llama-3.3-70b-versatile",
+                messages=messages,
+                tools=TOOLS_SCHEMA,
+                tool_choice="auto",
+            )
 
-        # 8. Extract tool calls from the run result
-        tool_calls_info = []
-        if hasattr(result, 'raw_responses'):
-            for raw in result.raw_responses:
-                if hasattr(raw, 'output'):
-                    for item in raw.output:
-                        if hasattr(item, 'type') and item.type == 'function_call':
-                            tool_call = ToolCallInfo(
-                                tool=item.name if hasattr(item, 'name') else "unknown",
-                                arguments=json.loads(item.arguments) if hasattr(item, 'arguments') else {},
-                            )
-                            tool_calls_info.append(tool_call)
+            assistant_msg = response.choices[0].message
+
+            if not assistant_msg.tool_calls:
+                # No tool calls — final response
+                response_text = assistant_msg.content or "I'm sorry, I couldn't process that."
+                break
+
+            # Append assistant message with tool calls (strip unsupported fields for Groq)
+            assistant_dict = {
+                "role": "assistant",
+                "content": assistant_msg.content or "",
+                "tool_calls": [
+                    {
+                        "id": tc.id,
+                        "type": "function",
+                        "function": {
+                            "name": tc.function.name,
+                            "arguments": tc.function.arguments,
+                        },
+                    }
+                    for tc in assistant_msg.tool_calls
+                ],
+            }
+            messages.append(assistant_dict)
+
+            # Execute each tool call
+            for tc in assistant_msg.tool_calls:
+                fn_name = tc.function.name
+                fn_args = json.loads(tc.function.arguments) if tc.function.arguments else {}
+                if not isinstance(fn_args, dict):
+                    fn_args = {}
+
+                tool_calls_info.append(ToolCallInfo(
+                    tool=fn_name,
+                    arguments=fn_args,
+                ))
+
+                handler = TOOL_HANDLERS.get(fn_name)
+                if handler:
+                    result = await handler(user_id=user_id, **fn_args)
+                else:
+                    result = json.dumps({"status": "error", "message": f"Unknown tool: {fn_name}"})
+
+                # Append tool result
+                messages.append({
+                    "role": "tool",
+                    "tool_call_id": tc.id,
+                    "content": result,
+                })
+        else:
+            response_text = "I'm sorry, the request took too many steps. Please try again."
 
     except Exception as e:
-        logger.error(f"Agent execution failed: {e}", exc_info=True)
+        logger.error(f"Chat processing failed: {e}", exc_info=True)
         response_text = "I'm sorry, I encountered an error processing your request. Please try again."
         tool_calls_info = []
 
-    # 9. Persist assistant response
+    # 6. Persist assistant response
     await _persist_message(conversation_id, "assistant", response_text)
 
-    # 10. Update conversation timestamp
+    # 7. Update conversation timestamp
     async with AsyncSession(engine) as s:
         query = select(Conversation).where(Conversation.id == conversation_id)
         result = await s.execute(query)

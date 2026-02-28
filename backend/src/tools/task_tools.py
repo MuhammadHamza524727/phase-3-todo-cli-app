@@ -1,13 +1,11 @@
 """
-MCP Tool definitions for task operations.
-These tools are used by the OpenAI Agents SDK to perform task CRUD operations
-on behalf of the authenticated user. User ID is injected via RunContext.
+Tool functions for task operations.
+Plain async functions called directly by chat_service with user_id injected.
 """
 import uuid
 import json
 from datetime import datetime
 from typing import Optional
-from agents import function_tool, RunContextWrapper
 from sqlalchemy.future import select
 from sqlalchemy import and_
 from sqlmodel.ext.asyncio.session import AsyncSession
@@ -16,43 +14,10 @@ from src.models.task import Task
 from src.database.connection import engine
 
 
-def _validate_title(title: str) -> Optional[str]:
-    """Validate task title. Returns error message or None if valid."""
-    if not title or not title.strip():
-        return "Title is required and must be between 1 and 200 characters."
-    if len(title) > 200:
-        return "Title must be between 1 and 200 characters."
-    return None
-
-
-def _validate_description(description: str) -> Optional[str]:
-    """Validate task description. Returns error message or None if valid."""
-    if description and len(description) > 1000:
-        return "Description must not exceed 1000 characters."
-    return None
-
-
-class UserContext:
-    """Context object injected into each MCP tool via RunContextWrapper.
-    Carries the authenticated user_id (from JWT).
-    Ensures all tool operations are scoped to the authenticated user (FR-002, FR-003).
-    """
-    def __init__(self, user_id: uuid.UUID, session: AsyncSession = None):
-        self.user_id = user_id
-        self.session = session
-
-
-@function_tool
-async def add_task(ctx: RunContextWrapper[UserContext], title: str, description: str = "") -> str:
-    """Add a new task to your task list. Use this when the user wants to create, add, or make a new task or todo item. Requires a title (1-200 characters). Optionally accepts a description (up to 1000 characters)."""
-    title_error = _validate_title(title)
-    if title_error:
-        return json.dumps({"status": "error", "message": title_error})
-    desc_error = _validate_description(description)
-    if desc_error:
-        return json.dumps({"status": "error", "message": desc_error})
-
-    user_id = ctx.context.user_id
+async def add_task_fn(user_id: uuid.UUID, title: str, description: str = "", **kwargs) -> str:
+    """Add a new task."""
+    if not title or not title.strip() or len(title) > 200:
+        return json.dumps({"status": "error", "message": "Title must be between 1 and 200 characters."})
 
     async with AsyncSession(engine) as session:
         db_task = Task(
@@ -73,15 +38,10 @@ async def add_task(ctx: RunContextWrapper[UserContext], title: str, description:
         })
 
 
-@function_tool
-async def list_tasks(ctx: RunContextWrapper[UserContext], filter: str = "all") -> str:
-    """List all tasks in your task list. Use this when the user wants to see, view, or check their tasks. Always pass filter="all" to see all tasks."""
-    user_id = ctx.context.user_id
-
+async def list_tasks_fn(user_id: uuid.UUID, **kwargs) -> str:
+    """List all tasks."""
     async with AsyncSession(engine) as session:
-        query = select(Task).where(Task.owner_user_id == user_id)
-        query = query.order_by(Task.created_at.desc())
-
+        query = select(Task).where(Task.owner_user_id == user_id).order_by(Task.created_at.desc())
         result = await session.execute(query)
         tasks = result.scalars().all()
 
@@ -89,7 +49,7 @@ async def list_tasks(ctx: RunContextWrapper[UserContext], filter: str = "all") -
             return json.dumps({
                 "status": "empty",
                 "count": 0,
-                "message": "You don't have any tasks yet. Try saying 'Add a task to...'"
+                "message": "You don't have any tasks yet."
             })
 
         task_list = []
@@ -110,11 +70,8 @@ async def list_tasks(ctx: RunContextWrapper[UserContext], filter: str = "all") -
         })
 
 
-@function_tool
-async def complete_task(ctx: RunContextWrapper[UserContext], task_id: str) -> str:
-    """Mark a task as completed or toggle it back to pending. Use this when the user says they finished, completed, or done with a task, or when they want to un-complete a task. Requires the task ID."""
-    user_id = ctx.context.user_id
-
+async def complete_task_fn(user_id: uuid.UUID, task_id: str, **kwargs) -> str:
+    """Toggle task completion."""
     try:
         tid = uuid.UUID(task_id)
     except ValueError:
@@ -143,11 +100,8 @@ async def complete_task(ctx: RunContextWrapper[UserContext], task_id: str) -> st
         })
 
 
-@function_tool
-async def get_task(ctx: RunContextWrapper[UserContext], task_id: str) -> str:
-    """Get details of a specific task by its ID. Use this to look up a single task."""
-    user_id = ctx.context.user_id
-
+async def get_task_fn(user_id: uuid.UUID, task_id: str, **kwargs) -> str:
+    """Get a single task."""
     try:
         tid = uuid.UUID(task_id)
     except ValueError:
@@ -173,26 +127,15 @@ async def get_task(ctx: RunContextWrapper[UserContext], task_id: str) -> str:
         })
 
 
-@function_tool
-async def update_task(
-    ctx: RunContextWrapper[UserContext],
+async def update_task_fn(
+    user_id: uuid.UUID,
     task_id: str,
     title: Optional[str] = None,
     description: Optional[str] = None,
     completed: Optional[bool] = None,
+    **kwargs,
 ) -> str:
-    """Update an existing task's details. Use this when the user wants to change, modify, rename, or edit a task. You can update the title, description, or completion status. Requires the task ID and at least one field to change."""
-    if title is not None:
-        title_error = _validate_title(title)
-        if title_error:
-            return json.dumps({"status": "error", "message": title_error})
-    if description is not None:
-        desc_error = _validate_description(description)
-        if desc_error:
-            return json.dumps({"status": "error", "message": desc_error})
-
-    user_id = ctx.context.user_id
-
+    """Update a task."""
     try:
         tid = uuid.UUID(task_id)
     except ValueError:
@@ -235,11 +178,8 @@ async def update_task(
         })
 
 
-@function_tool
-async def delete_task(ctx: RunContextWrapper[UserContext], task_id: str) -> str:
-    """Delete a task from your task list. Use this when the user wants to remove, delete, or get rid of a task. This action is permanent. Requires the task ID."""
-    user_id = ctx.context.user_id
-
+async def delete_task_fn(user_id: uuid.UUID, task_id: str, **kwargs) -> str:
+    """Delete a task."""
     try:
         tid = uuid.UUID(task_id)
     except ValueError:

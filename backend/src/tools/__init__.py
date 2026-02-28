@@ -1,9 +1,8 @@
 from .task_tools import (
-    add_task,
-    list_tasks,
-    complete_task,
-    update_task,
-    delete_task,
-    get_task,
-    UserContext,
+    add_task_fn,
+    list_tasks_fn,
+    complete_task_fn,
+    update_task_fn,
+    delete_task_fn,
+    get_task_fn,
 )
